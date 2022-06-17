@@ -1,13 +1,13 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # * To collect from Roach for the Leaderboard benchmark
 data_collect () {
-  python -u data_collect.py resume=true log_video=false save_to_wandb=true \
-  wb_project=il_leaderboard_roach \
+  python -u data_collect.py resume=true log_video=true save_to_wandb=true \
+  wb_project=roach \
   wb_group=bc_data \
   test_suites=lb_data \
-  n_episodes=160 \
-  dataset_root=/home/ubuntu/dataset/bc \
+  n_episodes=10 \
+  dataset_root=/home/kin/Tmp/bc \
   actors.hero.driver=ppo \
   agent.ppo.wb_run_path=iccv21-roach/trained-models/1929isj0 \
   agent.ppo.wb_ckpt_step=null \
@@ -41,13 +41,13 @@ data_collect () {
 
 # NO NEED TO MODIFY THE FOLLOWING
 # actiate conda env
-source ~/miniconda3/etc/profile.d/conda.sh
-conda activate carla
+# source ~/miniconda3/etc/profile.d/conda.sh
+# conda activate roach
 
 # remove checkpoint files
-rm outputs/checkpoint.txt
-rm outputs/wb_run_id.txt
-rm outputs/ep_stat_buffer_*.json
+# rm outputs/checkpoint.txt
+# rm outputs/wb_run_id.txt
+# rm outputs/ep_stat_buffer_*.json
 
 # resume benchmark in case carla is crashed.
 RED=$'\e[0;31m'

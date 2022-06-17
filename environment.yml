@@ -1,4 +1,4 @@
-name: carla
+name: roach
 channels:
   - pytorch
   - conda-forge

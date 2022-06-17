@@ -1,70 +1,86 @@
-# CARLA-Roach
+CARLA-Roach
 
-<p align="center">
-  <img width="50%" src="doc/teaser.png">
-</p>
+---
 
-<!-- <img src="doc/teaser.png" align="center" width="66%"> -->
+origin from:  fork repo. HERE IS personal use. 以下主要是做expert探索及实验对比
 
-This is the official code release of the paper <br> 
-**[End-to-End Urban Driving by Imitating a Reinforcement Learning Coach](https://arxiv.org/abs/2108.08265)** <br>
-*by [Zhejun Zhang](https://www.trace.ethz.ch/team/members/zhejun.html), [Alexander Liniger](https://www.trace.ethz.ch/team/members/alex.html), [Dengxin Dai](https://www.trace.ethz.ch/team/members/dengxin.html), [Fisher Yu](https://www.yf.io/) and [Luc van Gool](https://www.trace.ethz.ch/team/members/luc.html)*, accepted at [ICCV 2021](http://iccv2021.thecvf.com). <br>
+# 0. 安装
 
-It contains the code for [benchmark](#benchmark), [off-policy data collection](#collect-off-policy-datasets), [on-policy data collection](#collect-on-policy-datasets), [RL training](#train-rl-experts) and [IL training with DAGGER](#train-il-agents).
-It also contains [trained models](#trained-models) of RL experts and IL agents.
-The supplementary videos can be found at the paper's [homepage](https://www.trace.ethz.ch/publications/2021/roach/index.html).
+1. 参照CARLA安装脚本 [run/setup_carla.sh](run/setup_carla.sh) 如果有的话就不需要下载了~ [在内地的同学可以打开换一下函数 走镜像下载更快点.. ]
 
-## The Offline Leaderboard
+    ```bash
+    ./run/setup_carla.sh
+    # 输入选择版本
+    11
+    # 自动执行下载
+    ```
 
-The "Leaderboard" we evaluated on is an offline version of the [CARLA Leaderboard](https://leaderboard.carla.org/). As further detailed in the [paper](https://arxiv.org/pdf/2108.08265.pdf), the offline Leaderboard has the following setup
-- Map and routes: train/test split following Leaderboard [public routes](https://github.com/carla-simulator/leaderboard/tree/master/data).
-- Metrics: following Leaderboard evaluation and metrics.
-- Weather: train/test split following NoCrash.
-- Background traffic: following NoCrash
+2. 配Python 环境
 
-One can use the offline Leaderboard if a thorough study on the generalization ability of the method is desired.
+    ```bash
+    conda env create -f environment.yml --name roach
+    conda activate carla
+    ```
 
-### Pros and Cons of the [**Online** Leaderboard](https://leaderboard.carla.org/leaderboard/):
+# 1. Collect Data
 
-(+) All methods are evaluated under exactly the same condition.
+直接使用原repo提供的训练好的RL ckpt进行收集数据
 
-(+) No need to re-evaluate other methods.
+1. 运行环境设置（或者可以将CARLA lib直接`easy_install` 在系统路径中）**注意改成自己的路径**
 
-(-) No restriction on how the method is trained and how the training data is collected. 
+    ```bash
+    conda activate roach
+    export CARLA_ROOT=~/CARLA_0.9.11
+    export PYTHONPATH="/home/kin/CARLA_0.9.11/PythonAPI/carla/":"${CARLA_ROOT}/PythonAPI/carla/dist/carla-0.9.11-py3.7-linux-x86_64.egg":"/home/kin/workspace/GITHUB/carla-roach/":${PYTHONPATH}
+    ```
 
-### Pros and Cons of the **Offline** Leaderboard:
-(+) Strictly prescribes both the training and testing environment.
+2. 使用Roach 注意里面修改一下`dataset_root`
 
-(+) Full control and observation over the benchmark.
+   ```bash
+   ./run/data_collect_bc.sh
+   ```
 
-(-) You will have to re-evaluate other methods, if any setup of the benchmark has changed, for example CARLA version and etc.
+   ATTENTION: 此script主要运行`data_collect.py`，在里面会开CARLA 0.9.11 所以第一步的指定路径是非常重要的
 
+## ! 相关参数说明
 
-## Installation
-Please refer to [INSTALL.md](doc/INSTALL.md) for installation. 
-We use AWS EC2, but you can also install and run all experiments on your computer or cluster. 
+- `dataset_root`: 数据存放的位置，**一定要修改**，存储格式为`.h5` ，相关[code路径 saving_utils.py](utils/saving_utils.py)
 
-## Quick Start: Collect an expert dataset using Roach
+- `agent/cilrs/obs_configs`: 有关传感器的配置和位置等, default is `central_rgb_wide`. Available configurations are found [here](config/agent/cilrs/obs_configs). 
 
-Roach is an end-to-end trained agent that drives better and more naturally than hand-crafted CARLA experts.
-To collect a dataset from Roach, use [run/data_collect_bc.sh](run/data_collect_bc.sh) and modify the following arguments:
+  如果需要增加传感器或修改传感器位置，可以<u>根据此配置文件</u>进行，同时<u>注意添加对应的数据保存</u>
+
+  比如自带的rgb是在此路径下：[carla_gym/core/obs_manager/camera/rgb.py](carla_gym/core/obs_manager/camera/rgb.py) 设置好的
+
 - `save_to_wandb`: set to `False` if you don't want to upload the dataset to W&B.
-- `dataset_root`: local directory for saving the dataset.
+
 - `test_suites`: default is `eu_data` which collects data in Town01 for the NoCrash-dense benchmark. Available configurations are found [here](config/test_suites). You can also create your own configuration.
+
 - `n_episodes`: how many episodes to collect, each episode will be saved to a separate h5 file.
-- `agent/cilrs/obs_configs`: observation (i.e. sensor) configuration, default is `central_rgb_wide`. Available configurations are found [here](config/agent/cilrs/obs_configs). You can also create your own configuration.
+
 - `inject_noise`: default is `True`. As introduced in CILRS, triangular noise is injected to steering and throttle such that the ego-vehicle does not always follow the lane center. Very useful for imitation learning.
+
 - `actors.hero.terminal.kwargs.max_time`: Maximum duration of an episode, in seconds.
+
 - Early stop the episode if traffic rule is violated, such that the collected dataset is error-free.
   - `actors.hero.terminal.kwargs.no_collision`: default is `True`.
   - `actors.hero.terminal.kwargs.no_run_rl`: default is `False`.
   - `actors.hero.terminal.kwargs.no_run_stop`: default is `False`. 
+
+运行收集示意（其中 主仿真摄像头被我设置在了hero上）
+
+![](doc/example.png)
+
+# 2. Others ==
+
+因为后面不咋用 所以就没探索了
 
 ## Benchmark
 
 To benchmark checkpoints, use `run/benchmark.sh` and modify the arguments to select different settings. 
 We recommend `g4dn.xlarge` with 50 GB free disk space for video recording.
 Use `screen` if you want to run it in the background
+
 ```
 screen -L -Logfile ~/screen.log -d -m run/benchmark.sh
 ```
@@ -221,27 +237,3 @@ During the DAGGER training, a trained IL agent will be loaded and you cannot cha
 - `agent.cilrs.wb_ckpt_step`: the step of the checkpoint you want to use. Leave it as `null` will load the latest checkpoint.
 - `dagger_datasets`: vector of strings, W&B run path or local path to DAGGER datasets and the BC dataset in time-reversed order, for example `[PATH_DAGGER_DATA_2, PATH_DAGGER_DATA_1, PATH_DAGGER_DATA_0, BC_DATA]`
 - `train_epochs`: optionally you can change it if you want to train for more epochs.
-
-
-
-## Citation
-Please cite our work if you found it useful:
-```
-@inproceedings{zhang2021roach,
-  title = {End-to-End Urban Driving by Imitating a Reinforcement Learning Coach},
-  booktitle = {Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)},
-  author = {Zhang, Zhejun and Liniger, Alexander and Dai, Dengxin and Yu, Fisher and Van Gool, Luc},
-  year = {2021},
-}
-```
-
-## License
-This software is released under a CC-BY-NC 4.0 license, which allows personal and research use only. For a commercial 
-license, please contact the authors. You can view a license summary here.
-
-Portions of source code taken from external sources are annotated with links to original files and their corresponding 
-licenses.
-
-## Acknowledgements
-This work was supported by Toyota Motor Europe and was carried out at the TRACE Lab at ETH Zurich (Toyota Research on 
-Automated Cars in Europe - Zurich).
